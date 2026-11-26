@@ -1,0 +1,9 @@
+
+[build]
+  publish = "MA_News_24_Automatic_Sitemap_Ready_v2"
+  functions = "MA_News_24_Automatic_Sitemap_Ready_v2/netlify/functions"
+
+[[redirects]]
+  from = "/sitemap.xml"
+  to = "/.netlify/functions/sitemap"
+  status = 200
