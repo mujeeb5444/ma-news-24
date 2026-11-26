@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contact Us | MA News 24</title>
+<meta name="description" content="Contact the MA News 24 team for feedback, news tips and enquiries.">
+<link rel="canonical" href="https://inspiring-platypus-ac362f.netlify.app/contact.html">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;700;800&family=Noto+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:light;--bg:#F6F8FC;--card:#fff;--ink:#101828;--muted:#5B6478;--line:#DDE3EE;--brand:#0B4BD6;--brand-ink:#fff;box-sizing:border-box}
+@media(prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#0B1020;--card:#151C33;--ink:#EDF1FB;--muted:#9AA6C4;--line:#27304D;--brand:#6C95FF;--brand-ink:#08112B}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Noto Sans",sans-serif}.wrap{max-width:760px;margin:0 auto;padding:24px 18px}header,footer{border-bottom:1px solid var(--line);padding:16px 0}footer{border-top:1px solid var(--line);border-bottom:0;color:var(--muted);font-size:14px}.logo{font:800 28px Sora,sans-serif;color:var(--brand);text-decoration:none}.panel{margin:32px 0;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px}.panel h1{font:700 28px Sora,sans-serif;margin:0 0 8px}.muted{color:var(--muted)}form{display:grid;gap:14px;margin-top:22px}label{display:grid;gap:6px;font-weight:700;font-size:14px}input,textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);font:inherit}textarea{min-height:150px;resize:vertical}button{border:0;border-radius:9px;padding:12px 18px;background:var(--brand);color:var(--brand-ink);font-weight:700;font-size:15px;cursor:pointer}.status{font-size:14px;color:var(--muted);margin:0}a{color:var(--brand)}@media(max-width:520px){.panel{padding:18px;margin:20px 0}}
+</style></head><body><div class="wrap"><header><a class="logo" href="index.html">MA News 24</a></header>
+<main class="panel"><h1>Contact Us</h1><p class="muted">Send your feedback, news tips or enquiries to the MA News 24 team. We cover India and international news.</p>
+<form id="contactForm"><label>Your Name<input name="name" maxlength="100" required></label><label>Email Address<input name="email" type="email" maxlength="254" required></label><label>Message<textarea name="message" maxlength="5000" required></textarea></label><button type="submit">Send Message</button><p class="status" id="contactStatus" role="status"></p></form>
+</main><footer>© 2026 MA News 24 · <a href="about.html">About Us</a> · <a href="index.html">Back to Home</a></footer></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>
+const SUPABASE_URL="https://gmiwiorhkotptgjtyrmp.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY="sb_publishable_WURwgOFhWX5dwRvOAD3pEw_jGK7kSHA";
+const client=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+document.getElementById("contactForm").addEventListener("submit",async e=>{e.preventDefault();const f=e.currentTarget,fd=new FormData(f),s=document.getElementById("contactStatus");s.textContent="Sending message…";const payload={name:String(fd.get("name")||"").trim(),email:String(fd.get("email")||"").trim(),message:String(fd.get("message")||"").trim(),status:"new"};const {error}=await client.from("contact_messages").insert(payload);if(error){s.textContent="Message could not be sent: "+error.message;return;}f.reset();s.textContent="Message received successfully. Thank you!";});
+</script></body></html>
