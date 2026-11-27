@@ -1,3 +1,4 @@
 User-agent: *
 Allow: /
-Sitemap: https://inspiring-platypus-ac362f.netlify.app/sitemap.xml
+
+Sitemap: https://ma-news-24.pages.dev/sitemap.xml
