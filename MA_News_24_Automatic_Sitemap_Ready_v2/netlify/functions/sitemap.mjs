@@ -1,4 +1,4 @@
-const SITE = "https://inspiring-platypus-ac362f.netlify.app";
+const SITE = "https://ma-news-24.pages.dev";
 const SUPABASE_URL = "https://gmiwiorhkotptgjtyrmp.supabase.co";
 // Public publishable key only. Never put a service-role or secret key here.
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_WURwgOFhWX5dwRvOAD3pEw_jGK7kSHA";
