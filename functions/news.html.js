@@ -1,136 +1,119 @@
 
 const SUPABASE_URL = "https://gmiwiorhkotptgjtyrmp.supabase.co";
 const SUPABASE_KEY = "sb_publishable_WURwgOFhWX5dwRvOAD3pEw_jGK7kSHA";
-const SITE = "https://ma-news-24.pages.dev";
+const SITE_URL = "https://ma-news-24.pages.dev/";
 
 function escapeHtml(value) {
-  return String(value ?? "").replace(/[&<>"']/g, ch => ({
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
     "<": "&lt;",
     ">": "&gt;",
     '"': "&quot;",
     "'": "&#39;"
-  }[ch]));
+  })[char]);
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function upsertMeta(html, attribute, name, content) {
+  const safeName = escapeRegExp(name);
+  const regex = new RegExp(
+    `<meta\\b(?=[^>]*\\b${attribute}\\s*=\\s*["']${safeName}["'])[^>]*>`,
+    "i"
+  );
+
+  const tag = `<meta ${attribute}="${escapeHtml(name)}" content="${escapeHtml(content)}">`;
+
+  if (regex.test(html)) {
+    return html.replace(regex, tag);
+  }
+
+  return html.replace(/<\/head>/i, `  ${tag}\n</head>`);
+}
+
+function upsertCanonical(html, url) {
+  const tag = `<link rel="canonical" href="${escapeHtml(url)}">`;
+  const regex = /<link\b(?=[^>]*\brel\s*=\s*["']canonical["'])[^>]*>/i;
+
+  if (regex.test(html)) {
+    return html.replace(regex, tag);
+  }
+
+  return html.replace(/<\/head>/i, `  ${tag}\n</head>`);
 }
 
 export async function onRequestGet(context) {
   const asset = await context.next();
+  const requestUrl = new URL(context.request.url);
+  const articleId = requestUrl.searchParams.get("id");
+
+  // Normal page or missing ID: serve the original page.
+  if (!articleId || !asset.ok) {
+    return asset;
+  }
 
   try {
-    const url = new URL(context.request.url);
-    const id = url.searchParams.get("id");
-
-    if (!id) return asset;
-
-    // Fetch article from Supabase
     const apiUrl = new URL(`${SUPABASE_URL}/rest/v1/news`);
 
     apiUrl.searchParams.set(
       "select",
-      "id,title,description,image_url,created_at,category"
+      "id,category,title,description,image_url,created_at"
     );
-    apiUrl.searchParams.set("id", `eq.${id}`);
+    apiUrl.searchParams.set("id", `eq.${articleId}`);
     apiUrl.searchParams.set("status", "eq.published");
     apiUrl.searchParams.set("limit", "1");
 
-    const response = await fetch(apiUrl.toString(), {
+    const supabaseResponse = await fetch(apiUrl.toString(), {
       headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`
+        "apikey": SUPABASE_KEY,
+        "Authorization": `Bearer ${SUPABASE_KEY}`,
+        "Accept": "application/json"
       }
     });
 
-    if (!response.ok) return asset;
+    if (!supabaseResponse.ok) {
+      console.error("Supabase request failed:", supabaseResponse.status);
+      return asset;
+    }
 
-    const stories = await response.json();
-    const story = stories[0];
+    const stories = await supabaseResponse.json();
+    const story = Array.isArray(stories) ? stories[0] : null;
 
-    if (!story) return asset;
+    if (!story) {
+      return asset;
+    }
 
-    // Article SEO information
     const title = `${story.title || "Latest News"} | MA News 24`;
-
     const description = String(
       story.description || "Read the latest news on MA News 24."
-    )
-      .replace(/<[^>]*>/g, "")
-      .replace(/\s+/g, " ")
-      .slice(0, 155);
+    ).replace(/\s+/g, " ").slice(0, 160);
 
-    const canonical =
-      `${SITE}/news.html?id=${encodeURIComponent(story.id)}`;
+    const articleUrl =
+      `${SITE_URL}news.html?id=${encodeURIComponent(story.id)}`;
 
-    let html = await asset.text();
+    const imageUrl = story.image_url || "";
+    const publishedDate = story.created_at
+      ? new Date(story.created_at)
+      : null;
 
-    // Update page title
-    html = html.replace(
-      /<title>[\s\S]*?<\/title>/i,
-      `<title>${escapeHtml(title)}</title>`
-    );
+    const validDate =
+      publishedDate && !Number.isNaN(publishedDate.getTime())
+        ? publishedDate.toISOString()
+        : undefined;
 
-    // Update or insert meta tags
-    function updateMeta(attribute, name, content) {
-      const tag =
-        `<meta ${attribute}="${escapeHtml(name)}" content="${escapeHtml(content)}">`;
-
-      const pattern = new RegExp(
-        `<meta\\s+[^>]*${attribute}=["']${name}["'][^>]*>`,
-        "i"
-      );
-
-      if (pattern.test(html)) {
-        html = html.replace(pattern, tag);
-      } else {
-        html = html.replace(
-          /<\/head>/i,
-          `  ${tag}\n</head>`
-        );
-      }
-
-      return html;
-    }
-
-    html = updateMeta("name", "description", description);
-    html = updateMeta("property", "og:title", title);
-    html = updateMeta("property", "og:description", description);
-    html = updateMeta("property", "og:url", canonical);
-    html = updateMeta("property", "og:type", "article");
-    html = updateMeta("name", "twitter:title", title);
-    html = updateMeta("name", "twitter:description", description);
-
-    if (story.image_url) {
-      html = updateMeta("property", "og:image", story.image_url);
-      html = updateMeta("name", "twitter:image", story.image_url);
-    }
-
-    // Canonical URL
-    const canonicalTag =
-      `<link rel="canonical" href="${escapeHtml(canonical)}">`;
-
-    if (/<link\s+[^>]*rel=["']canonical["'][^>]*>/i.test(html)) {
-      html = html.replace(
-        /<link\s+[^>]*rel=["']canonical["'][^>]*>/i,
-        canonicalTag
-      );
-    } else {
-      html = html.replace(
-        /<\/head>/i,
-        `  ${canonicalTag}\n</head>`
-      );
-    }
-
-    // NewsArticle structured data
     const schema = {
       "@context": "https://schema.org",
       "@type": "NewsArticle",
       "mainEntityOfPage": {
         "@type": "WebPage",
-        "@id": canonical
+        "@id": articleUrl
       },
-      "headline": story.title,
+      "headline": story.title || "Latest News",
       "description": description,
-      "datePublished": story.created_at,
-      "dateModified": story.created_at,
+      "datePublished": validDate,
+      "dateModified": validDate,
       "author": {
         "@type": "Organization",
         "name": "MA News 24"
@@ -138,36 +121,74 @@ export async function onRequestGet(context) {
       "publisher": {
         "@type": "Organization",
         "name": "MA News 24"
-      }
+      },
+      "articleSection": story.category || "News",
+      "image": imageUrl ? [imageUrl] : undefined
     };
 
-    if (story.image_url) {
-      schema.image = [story.image_url];
+    let html = await asset.text();
+
+    // Remove an older copy of our server-generated schema, if present.
+    html = html.replace(
+      /<script\b[^>]*id=["']ma-news-article-schema["'][^>]*>[\s\S]*?<\/script>/gi,
+      ""
+    );
+
+    // Server-side SEO tags.
+    html = html.replace(
+      /<title>[\s\S]*?<\/title>/i,
+      `<title>${escapeHtml(title)}</title>`
+    );
+
+    html = upsertMeta(html, "name", "description", description);
+    html = upsertCanonical(html, articleUrl);
+
+    html = upsertMeta(html, "property", "og:type", "article");
+    html = upsertMeta(html, "property", "og:site_name", "MA News 24");
+    html = upsertMeta(html, "property", "og:title", title);
+    html = upsertMeta(html, "property", "og:description", description);
+    html = upsertMeta(html, "property", "og:url", articleUrl);
+
+    html = upsertMeta(html, "name", "twitter:card", "summary_large_image");
+    html = upsertMeta(html, "name", "twitter:title", title);
+    html = upsertMeta(html, "name", "twitter:description", description);
+
+    if (imageUrl) {
+      html = upsertMeta(html, "property", "og:image", imageUrl);
+      html = upsertMeta(html, "name", "twitter:image", imageUrl);
     }
 
-    if (story.category) {
-      schema.articleSection = story.category;
-    }
-
+    // Add NewsArticle JSON-LD directly inside the original HTML head.
     const schemaScript =
-      `<script type="application/ld+json" id="ma-news-article-schema">${JSON.stringify(schema).replace(/</g, "\\u003c")}</script>`;
+      `<script type="application/ld+json" id="ma-news-article-schema">` +
+      `${JSON.stringify(schema).replace(/</g, "\\u003c")}` +
+      `</script>`;
 
     html = html.replace(
       /<\/head>/i,
       `  ${schemaScript}\n</head>`
     );
 
-    // Return updated HTML
+    // Prevent the page's old browser-side code from adding a duplicate schema.
+    html = html.replace(
+      "document.head.appendChild(ld);",
+      "if(!document.getElementById('ma-news-article-schema'))document.head.appendChild(ld);"
+    );
+
     const headers = new Headers(asset.headers);
     headers.delete("content-length");
-    headers.set("Content-Type", "text/html; charset=utf-8");
+    headers.delete("content-encoding");
+    headers.delete("etag");
+    headers.set("content-type", "text/html; charset=utf-8");
 
     return new Response(html, {
       status: asset.status,
+      statusText: asset.statusText,
       headers
     });
 
   } catch (error) {
+    console.error("MA News SEO Function error:", error);
     return asset;
   }
 }
