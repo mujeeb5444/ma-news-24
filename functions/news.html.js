@@ -53,8 +53,10 @@ if (!story) {
     { headers: { "Content-Type": "text/plain" } }
   );
 }
-    const title = `${story.title || "Latest News"} | MA News 24`;
-
+return new Response(
+  "MA DEBUG SUCCESS: Article mil gaya. Title: " + story.title,
+  { headers: { "Content-Type": "text/plain" } }
+);
     const description = String(
       story.description || "Read the latest news on MA News 24."
     )
