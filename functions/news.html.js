@@ -81,9 +81,12 @@ export async function onRequestGet(context) {
     const stories = await supabaseResponse.json();
     const story = Array.isArray(stories) ? stories[0] : null;
 
-    if (!story) {
-      return asset;
-    }
+if (!story) {
+  return new Response("MA DEBUG: Story not found in Supabase", {
+    status: 200,
+    headers: { "content-type": "text/plain; charset=utf-8" }
+  });
+}
 
     const title = `${story.title || "Latest News"} | MA News 24`;
     const description = String(
