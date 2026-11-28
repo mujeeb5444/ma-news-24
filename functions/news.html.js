@@ -162,6 +162,10 @@ if (!story) {
     }
 
     // Add NewsArticle JSON-LD directly inside the original HTML head.
+    html = html.replace(
+  "</head>",
+  "<!-- MA-NEWS-SEO-FUNCTION-RUNNING -->\n</head>"
+);
     const schemaScript =
       `<script type="application/ld+json" id="ma-news-article-schema">` +
       `${JSON.stringify(schema).replace(/</g, "\\u003c")}` +
