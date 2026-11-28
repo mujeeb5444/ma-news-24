@@ -23,12 +23,15 @@ export async function onRequestGet(context) {
     if (!id) return asset;
 
     const apiUrl = new URL(`${SUPABASE_URL}/rest/v1/news`);
-    apiUrl.searchParams.set("select", "id,title,description,image_url,created_at,category");
+    apiUrl.searchParams.set(
+      "select",
+      "id,title,description,image_url,created_at,category"
+    );
     apiUrl.searchParams.set("id", `eq.${id}`);
     apiUrl.searchParams.set("status", "eq.published");
     apiUrl.searchParams.set("limit", "1");
 
-    const response = await fetch(apiUrl, {
+    const response = await fetch(apiUrl.toString(), {
       headers: {
         apikey: SUPABASE_KEY,
         Authorization: `Bearer ${SUPABASE_KEY}`
@@ -43,12 +46,16 @@ export async function onRequestGet(context) {
     if (!story) return asset;
 
     const title = `${story.title || "Latest News"} | MA News 24`;
-    const description = String(story.description || "Read the latest news on MA News 24.")
+
+    const description = String(
+      story.description || "Read the latest news on MA News 24."
+    )
       .replace(/<[^>]*>/g, "")
       .replace(/\s+/g, " ")
       .slice(0, 155);
 
-    const canonical = `${SITE}/news.html?id=${encodeURIComponent(story.id)}`;
+    const canonical =
+      `${SITE}/news.html?id=${encodeURIComponent(story.id)}`;
 
     let html = await asset.text();
 
@@ -58,7 +65,9 @@ export async function onRequestGet(context) {
     );
 
     function updateMeta(attribute, name, content) {
-      const tag = `<meta ${attribute}="${escapeHtml(name)}" content="${escapeHtml(content)}">`;
+      const tag =
+        `<meta ${attribute}="${escapeHtml(name)}" content="${escapeHtml(content)}">`;
+
       const pattern = new RegExp(
         `<meta\\s+[^>]*${attribute}=["']${name}["'][^>]*>`,
         "i"
@@ -84,13 +93,54 @@ export async function onRequestGet(context) {
       updateMeta("name", "twitter:image", story.image_url);
     }
 
-    const canonicalTag = `<link rel="canonical" href="${escapeHtml(canonical)}">`;
+    const canonicalTag =
+      `<link rel="canonical" href="${escapeHtml(canonical)}">`;
 
     if (/<link\s+[^>]*rel=["']canonical["'][^>]*>/i.test(html)) {
-      html = html.replace(/<link\s+[^>]*rel=["']canonical["'][^>]*>/i, canonicalTag);
+      html = html.replace(
+        /<link\s+[^>]*rel=["']canonical["'][^>]*>/i,
+        canonicalTag
+      );
     } else {
       html = html.replace("</head>", `  ${canonicalTag}\n</head>`);
     }
+
+    // Server-rendered NewsArticle Schema
+    const schema = {
+      "@context": "https://schema.org",
+      "@type": "NewsArticle",
+      "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": canonical
+      },
+      "headline": story.title,
+      "description": description,
+      "datePublished": story.created_at,
+      "author": {
+        "@type": "Organization",
+        "name": "MA News 24"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "MA News 24"
+      }
+    };
+
+    if (story.image_url) {
+      schema.image = [story.image_url];
+    }
+
+    if (story.category) {
+      schema.articleSection = story.category;
+    }
+
+    const schemaScript =
+      `<script type="application/ld+json" id="ma-news-article-schema">${JSON.stringify(schema).replace(/</g, "\\u003c")}</script>`;
+
+    html = html.replace(
+      "</head>",
+      `  ${schemaScript}\n</head>`
+    );
 
     const headers = new Headers(asset.headers);
     headers.delete("content-length");
