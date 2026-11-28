@@ -22,7 +22,9 @@ export async function onRequestGet(context) {
 
     if (!id) return asset;
 
+    // Fetch article from Supabase
     const apiUrl = new URL(`${SUPABASE_URL}/rest/v1/news`);
+
     apiUrl.searchParams.set(
       "select",
       "id,title,description,image_url,created_at,category"
@@ -38,26 +40,16 @@ export async function onRequestGet(context) {
       }
     });
 
-if (!response.ok) return asset;
+    if (!response.ok) return asset;
 
-const stories = await response.json();
-const story = stories[0];
+    const stories = await response.json();
+    const story = stories[0];
 
-if (!story) return asset;
+    if (!story) return asset;
 
-const title = `${story.title || "Latest News"} | MA News 24`;
+    // Article SEO information
+    const title = `${story.title || "Latest News"} | MA News 24`;
 
-const description = String(
-  story.description || "Read the latest news on MA News 24."
-)
-  .replace(/<[^>]*>/g, "")
-  .replace(/\s+/g, " ")
-  .slice(0, 155);
-}
-return new Response(
-  "MA DEBUG SUCCESS: Article mil gaya. Title: " + story.title,
-  { headers: { "Content-Type": "text/plain" } }
-);
     const description = String(
       story.description || "Read the latest news on MA News 24."
     )
@@ -70,11 +62,13 @@ return new Response(
 
     let html = await asset.text();
 
+    // Update page title
     html = html.replace(
       /<title>[\s\S]*?<\/title>/i,
       `<title>${escapeHtml(title)}</title>`
     );
 
+    // Update or insert meta tags
     function updateMeta(attribute, name, content) {
       const tag =
         `<meta ${attribute}="${escapeHtml(name)}" content="${escapeHtml(content)}">`;
@@ -87,23 +81,29 @@ return new Response(
       if (pattern.test(html)) {
         html = html.replace(pattern, tag);
       } else {
-        html = html.replace("</head>", `  ${tag}\n</head>`);
+        html = html.replace(
+          /<\/head>/i,
+          `  ${tag}\n</head>`
+        );
       }
+
+      return html;
     }
 
-    updateMeta("name", "description", description);
-    updateMeta("property", "og:title", title);
-    updateMeta("property", "og:description", description);
-    updateMeta("property", "og:url", canonical);
-    updateMeta("property", "og:type", "article");
-    updateMeta("name", "twitter:title", title);
-    updateMeta("name", "twitter:description", description);
+    html = updateMeta("name", "description", description);
+    html = updateMeta("property", "og:title", title);
+    html = updateMeta("property", "og:description", description);
+    html = updateMeta("property", "og:url", canonical);
+    html = updateMeta("property", "og:type", "article");
+    html = updateMeta("name", "twitter:title", title);
+    html = updateMeta("name", "twitter:description", description);
 
     if (story.image_url) {
-      updateMeta("property", "og:image", story.image_url);
-      updateMeta("name", "twitter:image", story.image_url);
+      html = updateMeta("property", "og:image", story.image_url);
+      html = updateMeta("name", "twitter:image", story.image_url);
     }
 
+    // Canonical URL
     const canonicalTag =
       `<link rel="canonical" href="${escapeHtml(canonical)}">`;
 
@@ -113,10 +113,13 @@ return new Response(
         canonicalTag
       );
     } else {
-      html = html.replace("</head>", `  ${canonicalTag}\n</head>`);
+      html = html.replace(
+        /<\/head>/i,
+        `  ${canonicalTag}\n</head>`
+      );
     }
 
-    // Server-rendered NewsArticle Schema
+    // NewsArticle structured data
     const schema = {
       "@context": "https://schema.org",
       "@type": "NewsArticle",
@@ -127,6 +130,7 @@ return new Response(
       "headline": story.title,
       "description": description,
       "datePublished": story.created_at,
+      "dateModified": story.created_at,
       "author": {
         "@type": "Organization",
         "name": "MA News 24"
@@ -148,13 +152,12 @@ return new Response(
     const schemaScript =
       `<script type="application/ld+json" id="ma-news-article-schema">${JSON.stringify(schema).replace(/</g, "\\u003c")}</script>`;
 
-  html = html.replace(
-  /<\/head>/i,
-  `<!-- MA-SCHEMA-INSERTION-TEST -->
-  ${schemaScript}
-</head>`
-);
+    html = html.replace(
+      /<\/head>/i,
+      `  ${schemaScript}\n</head>`
+    );
 
+    // Return updated HTML
     const headers = new Headers(asset.headers);
     headers.delete("content-length");
     headers.set("Content-Type", "text/html; charset=utf-8");
