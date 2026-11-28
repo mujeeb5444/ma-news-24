@@ -47,8 +47,12 @@ if (!response.ok) {
     const stories = await response.json();
     const story = stories[0];
 
-    if (!story) return asset;
-
+if (!story) {
+  return new Response(
+    "MA DEBUG: Supabase se published article record nahi mila.",
+    { headers: { "Content-Type": "text/plain" } }
+  );
+}
     const title = `${story.title || "Latest News"} | MA News 24`;
 
     const description = String(
