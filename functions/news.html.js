@@ -137,10 +137,10 @@ export async function onRequestGet(context) {
     const schemaScript =
       `<script type="application/ld+json" id="ma-news-article-schema">${JSON.stringify(schema).replace(/</g, "\\u003c")}</script>`;
 
-    html = html.replace(
-      "</head>",
-      `  ${schemaScript}\n</head>`
-    );
+  html = html.replace(
+  /<\/head>/i,
+  `  ${schemaScript}\n</head>`
+);
 
     const headers = new Headers(asset.headers);
     headers.delete("content-length");
