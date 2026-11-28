@@ -38,8 +38,12 @@ export async function onRequestGet(context) {
       }
     });
 
-    if (!response.ok) return asset;
-
+if (!response.ok) {
+  return new Response(
+    "MA DEBUG: Supabase HTTP Status = " + response.status,
+    { headers: { "Content-Type": "text/plain" } }
+  );
+}
     const stories = await response.json();
     const story = stories[0];
 
