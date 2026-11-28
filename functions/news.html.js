@@ -139,7 +139,9 @@ export async function onRequestGet(context) {
 
   html = html.replace(
   /<\/head>/i,
-  `  ${schemaScript}\n</head>`
+  `<!-- MA-SCHEMA-INSERTION-TEST -->
+  ${schemaScript}
+</head>`
 );
 
     const headers = new Headers(asset.headers);
