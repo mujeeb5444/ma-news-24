@@ -38,20 +38,21 @@ export async function onRequestGet(context) {
       }
     });
 
-if (!response.ok) {
-  return new Response(
-    "MA DEBUG: Supabase HTTP Status = " + response.status,
-    { headers: { "Content-Type": "text/plain" } }
-  );
-}
-    const stories = await response.json();
-    const story = stories[0];
+if (!response.ok) return asset;
 
-if (!story) {
-  return new Response(
-    "MA DEBUG: Supabase se published article record nahi mila.",
-    { headers: { "Content-Type": "text/plain" } }
-  );
+const stories = await response.json();
+const story = stories[0];
+
+if (!story) return asset;
+
+const title = `${story.title || "Latest News"} | MA News 24`;
+
+const description = String(
+  story.description || "Read the latest news on MA News 24."
+)
+  .replace(/<[^>]*>/g, "")
+  .replace(/\s+/g, " ")
+  .slice(0, 155);
 }
 return new Response(
   "MA DEBUG SUCCESS: Article mil gaya. Title: " + story.title,
